@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Neon Riff</title>
+<meta name="description" content="Neon Riff: a Guitar Hero-style rhythm game that charts your own audio files.">
+<meta name="theme-color" content="#0a0614">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Neon Riff">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="ytGameHost" class="hidden"><div id="ytGame"></div></div>
+<canvas id="cv" class="hidden"></canvas>
+
+<main id="menu" class="screen active">
+  <header class="brand">
+    <img src="icons/icon-192.png" alt="" width="56" height="56">
+    <div><h1>NEON <span>RIFF</span></h1><p class="tag">Feed it a song. Hit the notes.</p></div>
+    <button id="installBtn" class="btn small ghost hidden" type="button">Install app</button>
+  </header>
+
+  <section class="card">
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="file" role="tab" type="button">🎵 Audio file <em>accurate</em></button>
+      <button class="tab" data-tab="yt" role="tab" type="button">▶ YouTube link <em>approx.</em></button>
+    </div>
+
+    <div id="tab-file" class="tabpane active">
+      <label id="drop" class="drop" for="fileInput">
+        <input id="fileInput" type="file" accept="audio/*,.mp3,.wav,.ogg,.oga,.m4a,.aac,.flac,.opus,.webm">
+        <strong>Drop an audio file here</strong> or tap to choose<br>
+        <small>mp3 · wav · ogg · m4a (whatever your browser can decode). Stays on your device; works offline.</small>
+      </label>
+      <div id="fileInfo" class="info hidden"></div>
+    </div>
+
+    <div id="tab-yt" class="tabpane">
+      <div class="badge warn">Approximate (manual BPM)</div>
+      <p class="note">Web pages can't read YouTube's audio, so notes here are a steady pattern built from the BPM and first-beat offset <b>you</b> set; they won't follow the actual riffs. For charts generated from the real music, use <b>Audio file</b> mode (far more accurate).</p>
+      <div class="row">
+        <input id="ytUrl" type="url" inputmode="url" placeholder="Paste a YouTube link or video ID" autocomplete="off">
+        <button id="ytLoad" class="btn" type="button">Load</button>
+      </div>
+      <div id="ytStatus" class="info hidden"></div>
+      <div id="ytPreviewWrap" class="hidden"><div id="ytPreview"></div></div>
+      <div id="ytControls" class="hidden">
+        <div class="row">
+          <label class="field">BPM <input id="ytBpm" type="number" min="40" max="260" step="0.1" value="120"></label>
+          <button id="tapBtn" class="btn tap" type="button">TAP TEMPO</button>
+        </div>
+        <p class="hint" id="tapHint">Play the video above and tap along on the beat (8+ taps). Tapping while it plays also sets the first-beat offset.</p>
+        <div class="row">
+          <label class="field">First beat at (s) <input id="ytOffset" type="number" min="0" max="60" step="0.01" value="0.00"></label>
+          <div class="nudge">
+            <button type="button" data-nudge="-0.1">−0.1</button><button type="button" data-nudge="-0.01">−.01</button>
+            <button type="button" data-nudge="0.01">+.01</button><button type="button" data-nudge="0.1">+0.1</button>
+          </div>
+        </div>
+        <p class="hint">In-game: ← / → nudge sync by 10 ms.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Difficulty</h2>
+    <div class="diffs" id="diffs">
+      <button class="diff" data-diff="easy" type="button"><b>Easy</b><span>3 lanes · slow</span><i></i></button>
+      <button class="diff" data-diff="medium" type="button"><b>Medium</b><span>4 lanes</span><i></i></button>
+      <button class="diff" data-diff="hard" type="button"><b>Hard</b><span>5 lanes · chords</span><i></i></button>
+      <button class="diff" data-diff="expert" type="button"><b>Expert</b><span>5 lanes · 16ths · fast</span><i></i></button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Settings</h2>
+    <label class="slider">Volume <input id="vol" type="range" min="0" max="1" step="0.01"><output id="volOut"></output></label>
+    <label class="slider">Latency offset <input id="offset" type="range" min="-150" max="350" step="1"><output id="offOut"></output></label>
+    <label class="slider">Note speed <input id="speed" type="range" min="0.6" max="1.8" step="0.05"><output id="speedOut"></output></label>
+    <div class="row"><button id="calibBtn" class="btn small ghost" type="button">Calibrate latency</button><span class="hint">Positive offset = you hear audio late (Bluetooth headphones need +150 to +250 ms).</span></div>
+  </section>
+
+  <div class="playbar">
+    <div id="songLine" class="songline">No song selected</div>
+    <button id="playBtn" class="btn big" type="button" disabled>PLAY</button>
+  </div>
+  <p class="keys">Keys: <kbd>D</kbd><kbd>F</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> · <kbd>Space</kbd> overdrive · <kbd>Esc</kbd>/<kbd>P</kbd> pause · Phones: tap the lanes</p>
+  <p id="iosHint" class="hint center hidden">iPhone/iPad: tap Share → <b>Add to Home Screen</b> to install.</p>
+</main>
+
+<section id="loading" class="screen">
+  <div class="loadbox">
+    <h2 id="loadTitle">Analysing song…</h2>
+    <div class="bar"><div id="loadBar"></div></div>
+    <p id="loadText" class="hint">Decoding audio</p>
+  </div>
+</section>
+
+<div id="gameUi" class="hidden">
+  <button id="pauseBtn" class="iconbtn" type="button" aria-label="Pause">❚❚</button>
+  <button id="odBtn" class="iconbtn od" type="button" aria-label="Overdrive">⚡</button>
+  <div id="tapToStart" class="overlay hidden"><button id="tapToStartBtn" class="btn big" type="button">Tap to start video</button></div>
+</div>
+
+<div id="pause" class="overlay hidden">
+  <div class="panel">
+    <h2>Paused</h2>
+    <button id="resumeBtn" class="btn big" type="button">Resume</button>
+    <button id="restartBtn" class="btn" type="button">Restart</button>
+    <button id="quitBtn" class="btn ghost" type="button">Quit to menu</button>
+    <label class="slider">Volume <input id="vol2" type="range" min="0" max="1" step="0.01"><output id="volOut2"></output></label>
+    <label class="slider">Latency offset <input id="offset2" type="range" min="-150" max="350" step="1"><output id="offOut2"></output></label>
+  </div>
+</div>
+
+<section id="results" class="screen">
+  <div class="panel wide">
+    <p id="resSong" class="hint"></p>
+    <div class="grade" id="resGrade">A</div>
+    <div class="stars" id="resStars"></div>
+    <div class="score" id="resScore">0</div>
+    <p id="resBest" class="hint"></p>
+    <div class="grid">
+      <div><b id="resAcc"></b><span>accuracy</span></div>
+      <div><b id="resCombo"></b><span>max combo</span></div>
+      <div class="c-perfect"><b id="resPerfect"></b><span>perfect</span></div>
+      <div class="c-great"><b id="resGreat"></b><span>great</span></div>
+      <div class="c-good"><b id="resGood"></b><span>good</span></div>
+      <div class="c-miss"><b id="resMiss"></b><span>miss</span></div>
+    </div>
+    <p id="resTiming" class="hint"></p>
+    <div class="row center">
+      <button id="retryBtn" class="btn big" type="button">Retry</button>
+      <button id="newBtn" class="btn ghost" type="button">New song</button>
+    </div>
+  </div>
+</section>
+
+<div id="calib" class="overlay hidden">
+  <div class="panel">
+    <h2>Latency calibration</h2>
+    <p class="hint">Use the headphones/speakers you'll play with. You'll hear 16 clicks; tap <kbd>Space</kbd> or the button <b>on each click</b>. Listen, don't watch.</p>
+    <button id="calibTap" class="btn big tap" type="button">TAP</button>
+    <p id="calibText" class="info">Press Start</p>
+    <div class="row center">
+      <button id="calibStart" class="btn" type="button">Start</button>
+      <button id="calibApply" class="btn" type="button" disabled>Apply</button>
+      <button id="calibClose" class="btn ghost" type="button">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="js/analyzer.js"></script>
+<script src="js/chart.js"></script>
+<script src="js/youtube.js"></script>
+<script src="js/game.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
